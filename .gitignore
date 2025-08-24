@@ -1,0 +1,7 @@
+/experiment
+**/__pycache__/**
+/TULIP-main
+**/**.npy
+**/**.ply
+**/**.bin
+
