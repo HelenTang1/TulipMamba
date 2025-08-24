@@ -27,7 +27,7 @@ Run preprocess script:
 ```
 
 Data Statistic:
-| Traing Data | Validation Data |
+| Training Data | Validation Data |
 |-------------|-----------------|
 |    2811     |   528           |
 
