@@ -1,4 +1,5 @@
-/experiment
+/experiment/**/*.ply
+/experiment/**/*.pth
 **/__pycache__/**
 /TULIP-main
 **/**.npy

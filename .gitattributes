@@ -1,0 +1,15 @@
+experiment/tulip_base_mamba_crsatten/results_mcdrop.txt filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_crsmamba/results_mcdrop.txt filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_old/results_mcdrop.txt filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base/results_mcdrop.txt filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba/results_mcdrop.txt filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_data.csv filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_old_data.csv filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_old_sum.csv filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_sum.csv filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_sum.csv filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_crsatten_data.csv filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_crsatten_sum.csv filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_crsmamba_sum.csv filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_data.csv filter=lfs diff=lfs merge=lfs -text
+experiment/tulip_base_mamba_crsmamba_data.csv filter=lfs diff=lfs merge=lfs -text
