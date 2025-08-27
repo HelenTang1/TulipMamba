@@ -6,6 +6,7 @@ Reference: [TULIP: Transformer for Upsampling of LiDAR Point Clouds: A framework
 Git of TULIP: https://github.com/ethz-asl/TULIP.git
 
 # Environment
+https://github.com/HelenTang1/TulipMamba/blob/main/environment.yml
 - python=3.8
 - torch=1.13.0+cu117
 - torchaudio=0.13.0+cu117
