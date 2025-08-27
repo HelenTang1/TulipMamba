@@ -288,23 +288,45 @@ class MambaLayer(nn.Module):
 # ADD: New Skip Connection Options
 # --- NEW: Skip fusion modules -------------------------------------------------
 class CrossAttentionFusion(nn.Module):
-    """Cross-attention fusion: Q from x (decoder), K/V from skip, residual to x."""
+    """
+    Pixel-wise multi-head cross-attention (no bottleneck).
+    Q from x; K/V from {x, skip} at the SAME pixel. No spatial mixing.
+    """
     def __init__(self, dim: int, num_heads: int = 4, dropout: float = 0.0):
         super().__init__()
-        self.q_ln = nn.LayerNorm(dim)
-        self.kv_ln = nn.LayerNorm(dim)
-        self.attn = nn.MultiheadAttention(embed_dim=dim, num_heads=num_heads,
-                                          dropout=dropout, batch_first=True)
-        self.proj = nn.Linear(dim, dim)
+        if dim % num_heads != 0:
+            raise ValueError(f"`dim` ({dim}) must be divisible by num_heads ({num_heads}).")
+        self.dim = dim
+
+        # Per-pixel LN along channels
+        self.q_ln  = nn.LayerNorm(dim)
+        self.kv_ln = nn.LayerNorm(dim)   # <-- keep at C, not 2C
+
+        self.attn = nn.MultiheadAttention(
+            embed_dim=dim, num_heads=num_heads, dropout=dropout, batch_first=True
+        )
+        self.out_proj = nn.Linear(dim, dim, bias = False)
 
     def forward(self, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
-        # x, skip: [B, H, W, C]
+        # x, skip: [B, H, W, C] (NHWC)
         B, H, W, C = x.shape
-        q = self.q_ln(x).reshape(B, H * W, C)       # [B, L, C]
-        kv = self.kv_ln(skip).reshape(B, H * W, C)  # [B, L, C]
-        out, _ = self.attn(q, kv, kv)               # [B, L, C]
-        out = self.proj(out) + x.reshape(B, H * W, C)
-        return out.reshape(B, H, W, C)
+        assert C == self.dim
+
+        # LN per source *before* stacking (each sees last-dim = C)
+        q_src  = self.q_ln(x)           # [B,H,W,C]
+        kx_src = self.kv_ln(x)          # [B,H,W,C]
+        ks_src = self.kv_ln(skip)       # [B,H,W,C]
+
+        # Build per-pixel sequences
+        q  = q_src.reshape(B * H * W, 1, C)                         # [BHW,1,C]
+        kv = torch.stack([kx_src, ks_src], dim=3).reshape(B*H*W, 2, C)  # [BHW,2,C]
+
+        # Pixel-wise multi-head attention
+        y, _ = self.attn(q, kv, kv, need_weights=False)             # [BHW,1,C]
+        y = y.reshape(B, H, W, C)
+
+        # Residual in pixel space
+        return self.out_proj(y) + x
     
 class CrossMambaFusion(nn.Module):
     """
@@ -333,17 +355,18 @@ class CrossMambaFusion(nn.Module):
         y_even = self.out_proj(y_even) + x_flat      # residual to x
 
         return y_even.reshape(B, H, W, C)
-    
+
+
 class SkipFusion(nn.Module):
     """
-    Wrapper that offers three fusion modes:
-      - 'linear'     : original concat + Linear(dim*2 -> dim)
-      - 'cross_attn' : CrossAttentionFusion
-      - 'cross_mamba': CrossMambaFusion
+    - 'linear'      : concat on channels then Linear(dim*2 -> dim) — pixel-wise
+    - 'cross_attn'  : pixel-wise multi-head CrossAttentionFusion (no bottleneck)
+    - 'cross_mamba' : pixel-wise CrossMambaFusion (no bottleneck)
     """
     def __init__(self, dim: int, mode: str = "linear",
                  attn_heads: int = 4, attn_dropout: float = 0.0,
-                 mamba_state: int = 16, mamba_conv: int = 4, mamba_expand: int = 2):
+                 mamba_state: int = 16, mamba_conv: int = 4, mamba_expand: int = 2,
+                 ):
         super().__init__()
         mode = mode.lower()
         self.mode = mode
@@ -352,16 +375,17 @@ class SkipFusion(nn.Module):
         elif mode == "cross_attn":
             self.fuser = CrossAttentionFusion(dim, num_heads=attn_heads, dropout=attn_dropout)
         elif mode == "cross_mamba":
-            self.fuser = CrossMambaFusion(dim, d_state=mamba_state, d_conv=mamba_conv, expand=mamba_expand)
+            self.fuser = CrossMambaFusion(dim, d_state=mamba_state, d_conv=mamba_conv,
+                                          expand=mamba_expand)
         else:
             raise ValueError(f"Unknown skip fusion mode: {mode}")
 
     def forward(self, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
         if self.mode == "linear":
-            # original: concat on channel dim, project back to dim
+            # Pixel-wise linear fusion on channels
             return self.fuser(torch.cat([x, skip], dim=-1))
         else:
-            # cross_* modes consume both tensors and return fused feature (same shape as x)
+            # Pixel-wise cross_* modes consume both tensors and return fused feature (same shape as x)
             return self.fuser(x, skip)
 # --------------------------------------------------------------------------
 
