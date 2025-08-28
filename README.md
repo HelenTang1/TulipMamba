@@ -44,6 +44,12 @@ Data Statistic:
 ./run_train_<model_name>.sh
 ```
 
+## Obsoleted Models
+- tulip_base_mamba_crsatten_obsolete_along_pixel
+    - Trained by the OLD Commit `f05e7bf`
+    - Obsolete Reason: Changing the Attention from pixel-wise to Channel-Wise improves the performance
+
+
 ### Hyperparameters:
 - batch_size=8
 - epochs=900
